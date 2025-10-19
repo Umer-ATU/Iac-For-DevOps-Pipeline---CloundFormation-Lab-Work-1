@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: DynamoDB table for Learning Notes API
+
+Parameters:
+  TableName:
+    Type: String
+    Default: LearningNotes
+    Description: DynamoDB table name
+
+Resources:
+  NotesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      AttributeDefinitions:
+        - AttributeName: topic
+          AttributeType: S
+      KeySchema:
+        - AttributeName: topic
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+
+Outputs:
+  NotesTableName:
+    Description: Name of the DynamoDB table
+    Value: !Ref NotesTable
+  NotesTableArn:
+    Description: ARN of the DynamoDB table
+    Value: !GetAtt NotesTable.Arn
