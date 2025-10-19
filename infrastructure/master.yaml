@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Master stack for Learning Notes API (Lambda + API Gateway + DynamoDB)
+
+Parameters:
+  S3Bucket:
+    Type: String
+    Description: S3 bucket containing Lambda deployment package
+
+  S3Key:
+    Type: String
+    Description: Key path to Lambda zip file in S3 bucket
+
+Resources:
+  DatabaseStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/infra/database.yaml"
+      Parameters:
+        TableName: LearningNotes
+
+  LambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/infra/lambda.yaml"
+      Parameters:
+        TableName: !GetAtt DatabaseStack.Outputs.NotesTableName
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Ref S3Key
+
+  ApiStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/infra/api.yaml"
+      Parameters:
+        LambdaFunctionArn: !GetAtt LambdaStack.Outputs.LambdaFunctionArn
+        LambdaFunctionName: !GetAtt LambdaStack.Outputs.LambdaFunctionName
+
+Outputs:
+  ApiUrl:
+    Description: Endpoint URL of the Learning Notes API
+    Value: !GetAtt ApiStack.Outputs.ApiEndpoint
+
+  DynamoTable:
+    Description: DynamoDB table name
+    Value: !GetAtt DatabaseStack.Outputs.NotesTableName
+
+  LambdaFunction:
+    Description: Deployed Lambda Function name
+    Value: !GetAtt LambdaStack.Outputs.LambdaFunctionName

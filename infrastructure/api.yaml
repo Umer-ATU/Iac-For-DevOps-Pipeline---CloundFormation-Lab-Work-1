@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: API Gateway configuration for Learning Notes API
+
+Parameters:
+  LambdaFunctionArn:
+    Type: String
+    Description: ARN of the Lambda function to integrate
+
+  LambdaFunctionName:
+    Type: String
+    Description: Name of the Lambda function
+
+Resources:
+  LearningNotesApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: LearningNotesApi
+      Description: REST API for Learning Notes
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  NotesResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref LearningNotesApi
+      ParentId: !GetAtt LearningNotesApi.RootResourceId
+      PathPart: note
+
+  TopicResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref LearningNotesApi
+      ParentId: !Ref NotesResource
+      PathPart: "{topic}"
+
+  PostNoteMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref LearningNotesApi
+      ResourceId: !Ref NotesResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub >-
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+
+  GetNoteMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref LearningNotesApi
+      ResourceId: !Ref TopicResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub >-
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaFunctionName
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${LearningNotesApi}/*/*
+
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: [PostNoteMethod, GetNoteMethod]
+    Properties:
+      RestApiId: !Ref LearningNotesApi
+      StageName: prod
+
+Outputs:
+  ApiEndpoint:
+    Description: Public URL of the Learning Notes API
+    Value: !Sub "https://${LearningNotesApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
